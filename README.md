@@ -21,3 +21,19 @@ Sistema IoT implementado en Raspberry Pi que:
 - Raspberry Pi
 
 ## Estructura del proyecto
+
+iot-tinyml-dht11-ultrasonico/
+│
+├── app2.py
+├── captura_datos.py
+├── captura_datos_sensores.py
+├── entrenar_modelo.py
+├── model1.pkl
+│
+├── templates/
+│ └── dashboard_dht11_ultra.html
+iot-tinyml-dht11-ultrasonico/
+## Autor
+Kevin García Buitrón  
+Universidad Politécnica Salesiana  
+Electrónica y Automatización
