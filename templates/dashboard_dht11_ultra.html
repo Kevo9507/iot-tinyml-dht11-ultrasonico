@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard IoT - DHT11 + Ultrasonico</title>
+
+  <style>
+    :root{
+      --bg: #0b1220;
+      --card: rgba(255,255,255,0.06);
+      --card2: rgba(255,255,255,0.09);
+      --text: #e6edf7;
+      --muted: rgba(230,237,247,0.7);
+      --border: rgba(255,255,255,0.12);
+      --shadow: 0 10px 30px rgba(0,0,0,0.35);
+      --ok: #16a34a;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --info: #38bdf8;
+      --blink: #a855f7;
+    }
+
+    *{ box-sizing:border-box; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    body{
+      margin:0;
+      min-height:100vh;
+      background: radial-gradient(900px 600px at 15% 20%, rgba(56,189,248,0.18), transparent 60%),
+                  radial-gradient(900px 600px at 80% 30%, rgba(168,85,247,0.14), transparent 60%),
+                  radial-gradient(900px 600px at 55% 90%, rgba(239,68,68,0.12), transparent 60%),
+                  var(--bg);
+      color: var(--text);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding: 28px;
+    }
+
+    .wrap{
+      width:min(1100px, 100%);
+    }
+
+    header{
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:space-between;
+      align-items:center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .title{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+
+    h1{
+      margin:0;
+      font-size: 22px;
+      letter-spacing: 0.3px;
+    }
+    .subtitle{
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.05);
+      box-shadow: var(--shadow);
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .dot{
+      width:10px; height:10px;
+      border-radius:999px;
+      background: var(--info);
+      box-shadow: 0 0 0 6px rgba(56,189,248,0.12);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+    }
+
+    .card{
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 16px 16px 14px;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .card::before{
+      content:"";
+      position:absolute;
+      inset: 0;
+      background: linear-gradient(120deg, rgba(255,255,255,0.07), transparent 35%, transparent 65%, rgba(255,255,255,0.04));
+      pointer-events:none;
+    }
+
+    .card h2{
+      margin:0 0 10px 0;
+      font-size: 14px;
+      color: var(--muted);
+      font-weight: 600;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+
+    .value{
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -0.7px;
+      margin: 0;
+      display:flex;
+      align-items:baseline;
+      gap: 10px;
+    }
+    .unit{
+      font-size: 14px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--card2);
+      font-size: 13px;
+      color: var(--text);
+      width: fit-content;
+    }
+
+    .pill .mini-dot{
+      width:10px; height:10px; border-radius:999px;
+      background: var(--info);
+      box-shadow: 0 0 0 6px rgba(56,189,248,0.12);
+    }
+
+    .kv{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px 10px;
+      align-items:center;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .kv b{
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    /* layout */
+    .c-temp{ grid-column: span 4; }
+    .c-hum{ grid-column: span 4; }
+    .c-dist{ grid-column: span 4; }
+    .c-status{ grid-column: span 8; }
+    .c-hw{ grid-column: span 4; }
+
+    @media (max-width: 900px){
+      .c-temp,.c-hum,.c-dist{ grid-column: span 6; }
+      .c-status{ grid-column: span 12; }
+      .c-hw{ grid-column: span 12; }
+    }
+    @media (max-width: 520px){
+      .c-temp,.c-hum,.c-dist{ grid-column: span 12; }
+    }
+
+    /* Status colors */
+    .status-normal{ color: var(--ok); }
+    .status-adv{ color: var(--warn); }
+    .status-emer{ color: var(--danger); }
+    .status-emer-pres{ color: var(--danger); text-shadow: 0 0 18px rgba(239,68,68,0.28); }
+
+    .led-off{ color: var(--muted); }
+    .led-on{ color: var(--ok); }
+    .led-blink{ color: var(--blink); }
+
+    .help{
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .footer{
+      margin-top: 14px;
+      color: rgba(230,237,247,0.55);
+      font-size: 12px;
+      text-align:right;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <h1>Dashboard IoT - DHT11 + HC-SR04</h1>
+        <div class="subtitle">TinyML + Control LED + Alerta por Telegram (solo en EMERGENCIA_CON_PRESENCIA)</div>
+      </div>
+
+      <div class="badge">
+        <span class="dot" id="liveDot"></span>
+        <span id="liveText">Conectando…</span>
+      </div>
+    </header>
+
+    <section class="grid">
+      <!-- Temperatura -->
+      <div class="card c-temp">
+        <h2>Temperatura</h2>
+        <p class="value">
+          <span id="tempValue">--</span>
+          <span class="unit">°C</span>
+        </p>
+        <div class="kv">
+          <span>Última actualización</span>
+          <b id="lastUpdate1">--</b>
+        </div>
+      </div>
+
+      <!-- Humedad -->
+      <div class="card c-hum">
+        <h2>Humedad</h2>
+        <p class="value">
+          <span id="humValue">--</span>
+          <span class="unit">%</span>
+        </p>
+        <div class="kv">
+          <span>Última actualización</span>
+          <b id="lastUpdate2">--</b>
+        </div>
+      </div>
+
+      <!-- Distancia -->
+      <div class="card c-dist">
+        <h2>Distancia</h2>
+        <p class="value">
+          <span id="distValue">--</span>
+          <span class="unit">cm</span>
+        </p>
+        <div class="kv">
+          <span>Presencia (&lt; 10 cm)</span>
+          <b id="presenceValue">--</b>
+        </div>
+      </div>
+
+      <!-- Estado del Sistema -->
+      <div class="card c-status">
+        <h2>Estado del Sistema (TinyML)</h2>
+        <div class="pill">
+          <span class="mini-dot" id="statusDot"></span>
+          <b id="statusValue">--</b>
+        </div>
+
+        <div class="kv" style="margin-top: 14px;">
+          <span>Modelo</span><b>model1.pkl</b>
+          <span>Regla crítica</span><b>EMERGENCIA + PRESENCIA → Telegram</b>
+          <span>Hora del sistema</span><b id="lastUpdate3">--</b>
+        </div>
+
+        <div class="help">
+          <b>Interpretación:</b><br/>
+          • <span class="status-normal">NORMAL</span> → LED apagado<br/>
+          • <span class="status-adv">ADVERTENCIA</span> → LED parpadeo<br/>
+          • <span class="status-emer">EMERGENCIA</span> → LED encendido fijo<br/>
+          • <span class="status-emer-pres">EMERGENCIA_CON_PRESENCIA</span> → LED fijo + Telegram
+        </div>
+      </div>
+
+      <!-- Hardware -->
+      <div class="card c-hw">
+        <h2>Hardware</h2>
+        <div class="kv">
+          <span>LED</span><b id="ledValue">--</b>
+          <span>GPIO LED</span><b>23</b>
+          <span>GPIO TRIG</span><b>18</b>
+          <span>GPIO ECHO</span><b>24</b>
+          <span>GPIO DHT</span><b>4</b>
+        </div>
+
+        <div class="footer">
+          Actualiza automáticamente cada <b>1s</b> (API)
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Estado local
+    let lastOk = 0;
+
+    function setLive(ok){
+      const dot = document.getElementById("liveDot");
+      const txt = document.getElementById("liveText");
+      if(ok){
+        dot.style.background = "var(--ok)";
+        dot.style.boxShadow = "0 0 0 6px rgba(22,163,74,0.12)";
+        txt.textContent = "En línea";
+      }else{
+        dot.style.background = "var(--danger)";
+        dot.style.boxShadow = "0 0 0 6px rgba(239,68,68,0.12)";
+        txt.textContent = "Sin conexión";
+      }
+    }
+
+    function statusStyle(status){
+      const statusEl = document.getElementById("statusValue");
+      statusEl.className = "";
+      if(status === "NORMAL") statusEl.classList.add("status-normal");
+      else if(status === "ADVERTENCIA") statusEl.classList.add("status-adv");
+      else if(status === "EMERGENCIA") statusEl.classList.add("status-emer");
+      else if(status === "EMERGENCIA_CON_PRESENCIA") statusEl.classList.add("status-emer-pres");
+    }
+
+    function statusDotColor(status){
+      const dot = document.getElementById("statusDot");
+      if(status === "NORMAL"){
+        dot.style.background = "var(--ok)";
+        dot.style.boxShadow = "0 0 0 6px rgba(22,163,74,0.12)";
+      }else if(status === "ADVERTENCIA"){
+        dot.style.background = "var(--warn)";
+        dot.style.boxShadow = "0 0 0 6px rgba(245,158,11,0.12)";
+      }else{
+        dot.style.background = "var(--danger)";
+        dot.style.boxShadow = "0 0 0 6px rgba(239,68,68,0.12)";
+      }
+    }
+
+    function ledStyle(led){
+      const el = document.getElementById("ledValue");
+      el.className = "";
+      if(led === "OFF") el.classList.add("led-off");
+      else if(led === "BLINK") el.classList.add("led-blink");
+      else el.classList.add("led-on");
+      el.textContent = led;
+    }
+
+    function presenceText(distance){
+      if(distance === null || distance === undefined) return "--";
+      return (Number(distance) < 10) ? "PRESENCIA" : "SIN PRESENCIA";
+    }
+
+    async function fetchState(){
+      try{
+        const res = await fetch("/api/state", { cache: "no-store" });
+        const data = await res.json();
+
+        // Actualizar UI
+        document.getElementById("tempValue").textContent =
+          (data.temperature ?? "--");
+
+        document.getElementById("humValue").textContent =
+          (data.humidity ?? "--");
+
+        document.getElementById("distValue").textContent =
+          (data.distance_cm ?? "--");
+
+        document.getElementById("presenceValue").textContent =
+          presenceText(data.distance_cm);
+
+        document.getElementById("statusValue").textContent =
+          (data.status ?? "N/A");
+
+        statusStyle(data.status);
+        statusDotColor(data.status);
+
+        ledStyle(data.led ?? "OFF");
+
+        document.getElementById("lastUpdate1").textContent = data.last_update ?? "--";
+        document.getElementById("lastUpdate2").textContent = data.last_update ?? "--";
+        document.getElementById("lastUpdate3").textContent = data.last_update ?? "--";
+
+        lastOk = Date.now();
+        setLive(true);
+      }catch(e){
+        // Si pasan >3s sin éxito, marcar offline
+        if(Date.now() - lastOk > 3000) setLive(false);
+      }
+    }
+
+    // Arranque
+    setLive(false);
+    fetchState();
+    setInterval(fetchState, 1000);
+  </script>
+</body>
+</html>
